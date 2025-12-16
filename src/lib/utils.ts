@@ -1,3 +1,6 @@
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
 export const METADATA = {
   name: "BaseRush",
   description: "Mine daily rewards and play tap puzzle games on Base.",
@@ -6,3 +9,7 @@ export const METADATA = {
   homeUrl: "https://baserush.vercel.app",
   splashBackgroundColor: "#0EA5E9",
 };
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
