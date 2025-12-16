@@ -16,7 +16,7 @@ export async function GET() {
         "homeUrl": METADATA.homeUrl,
         "imageUrl": METADATA.bannerImageUrl,
         "webhookUrl": `${METADATA.homeUrl}/api/webhook`,
-        "splashImageUrl": METADATA.iconImageUrl,
+        "splashImageUrl": METADATA.splashImageUrl,
         "splashBackgroundColor": METADATA.splashBackgroundColor,
         "description": METADATA.description,
         "ogTitle": METADATA.name,
