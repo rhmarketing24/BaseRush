@@ -7,6 +7,7 @@ export const METADATA = {
   bannerImageUrl: "https://baserush.vercel.app/banner.png",
   iconImageUrl: "https://baserush.vercel.app/icon.png",
   homeUrl: "https://baserush.vercel.app",
+  splashImageUrl : "hhttps://baserush.vercel.app/splash.png",
   splashBackgroundColor: "#0EA5E9",
 };
 
