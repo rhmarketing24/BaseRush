@@ -4,50 +4,59 @@ export async function GET() {
   const config = {
     accountAssociation: {
       header:
-        "",
-      payload: "",
+        "eyJmaWQiOjI5NTY4MCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDdFNTdiNWQ0MmEzN2NDMzMyQ2M1NDcxMmRiOTc3RjQzQmFmMmZmMjgifQ",
+      payload:
+        "eyJkb21haW4iOiJiYXNlcnVzaC52ZXJjZWwuYXBwIn0",
       signature:
-        "",
+        "AAAAAAAAAAAAAAAAyhG94Fl3s2MRZwKIYr4qFzl2yhEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAkSCrVbLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAul7REO_bo9AFv8iC11NYrLu4WEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVQ_-6NvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABA1mXDYl4giMo9yN3Jx2hP-C6ovDKIpV_AXrI4g4v1hIdTn8eZUzKAOZKZYxPaMFdiBCOUv1YGRGodd-YeINQuCQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAA6KiZhLxuapwiKeLeCbgaAt0iZibhWwqMROytRWUz0BEOrSzgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8bGqU-KpdnE5HePix_5b0zOD3HQwIy-PP0r0IEFsOnlw69IPO9EmjT6o0g1cx2zW8ATp1JFH9O0csTmxhE7SCQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAl8ZgIay2xclZzG8RWZzuWvO8j9R0fus3XxDee9lRlVy8dAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACKeyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoidGJZTXptQnpCZzBUR2RWc0wtdE9MSXE3WDBmZ0hTQWQ5VkpLTHZlRldIbyIsIm9yaWdpbiI6Imh0dHBzOi8va2V5cy5jb2luYmFzZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAGSSZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSS",
     },
-      "frame": {
-        "version": "1",
-        "name": METADATA.name,
-        "iconUrl": METADATA.iconImageUrl,
-        "homeUrl": METADATA.homeUrl,
-        "imageUrl": METADATA.bannerImageUrl,
-        "webhookUrl": `${METADATA.homeUrl}/api/webhook`,
-        "splashImageUrl": METADATA.splashImageUrl,
-        "splashBackgroundColor": METADATA.splashBackgroundColor,
-        "description": METADATA.description,
-        "ogTitle": METADATA.name,
-        "ogDescription": METADATA.description,
-        "ogImageUrl": METADATA.bannerImageUrl,
-        "primaryCategory": "developer-tools",
-        "requiredCapabilities": [
-          "actions.ready",
-          "actions.signIn", 
-          "actions.openMiniApp",
-          "actions.addMiniApp",
-          "actions.openUrl",
-          "actions.sendToken",
-          "actions.viewToken", 
-          "actions.composeCast",
-          "actions.viewProfile",
-          "actions.swapToken",
-          "actions.close",
-          "actions.viewCast",
-          "wallet.getEthereumProvider"
-        ],
-        "requiredChains": [
-          "eip155:8453",
-          "eip155:10"
-        ],
-        "noindex": false,
-        "tags": ["base", "baseapp", "miniapp", "demo", "basepay"]
-      },
-      "baseBuilder": {
-        "allowedAddresses": ["0x8342A48694A74044116F330db5050a267b28dD85"],
-      }
+
+    frame: {
+      version: "1",
+
+      name: METADATA.name,
+      description: METADATA.description,
+
+      homeUrl: METADATA.homeUrl,               // https://baserush.vercel.app
+      iconUrl: METADATA.iconImageUrl,
+      imageUrl: METADATA.bannerImageUrl,
+      webhookUrl: `${METADATA.homeUrl}/api/webhook`,
+
+      splashImageUrl: METADATA.iconImageUrl,
+      splashBackgroundColor: METADATA.splashBackgroundColor,
+
+      ogTitle: METADATA.name,
+      ogDescription: METADATA.description,
+      ogImageUrl: METADATA.bannerImageUrl,
+
+      primaryCategory: "developer-tools",
+      tags: ["base", "baserush", "miniapp", "game", "baseapp"],
+
+      requiredCapabilities: [
+        "actions.ready",
+        "actions.signIn",
+        "actions.openMiniApp",
+        "actions.addMiniApp",
+        "actions.openUrl",
+        "actions.sendToken",
+        "actions.viewToken",
+        "actions.composeCast",
+        "actions.viewProfile",
+        "actions.swapToken",
+        "actions.close",
+        "actions.viewCast",
+        "wallet.getEthereumProvider",
+      ],
+
+      requiredChains: ["eip155:8453"],
+      noindex: false,
+    },
+
+    baseBuilder: {
+      allowedAddresses: [
+        "0x7E57b5d42a37cC332Cc54712db977F43Baf2ff28",
+      ],
+    },
   };
 
   return Response.json(config);
