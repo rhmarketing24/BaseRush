@@ -15,11 +15,23 @@ export async function GET() {
       version: "1",
 
       name: METADATA.name,
+      subtitle: "Mine rewards & play games",
+      tagline: "Play. Mine. Earn on Base",
+
       description: METADATA.description,
 
-      homeUrl: METADATA.homeUrl,               // https://baserush.vercel.app
+      homeUrl: METADATA.homeUrl,
       iconUrl: METADATA.iconImageUrl,
+
       imageUrl: METADATA.bannerImageUrl,
+      heroImageUrl: METADATA.bannerImageUrl,
+
+      screenshotUrls: [
+        "https://baserush.vercel.app/screen1.png",
+        "https://baserush.vercel.app/screen2.png",
+        "https://baserush.vercel.app/screen3.png",
+      ],
+
       webhookUrl: `${METADATA.homeUrl}/api/webhook`,
 
       splashImageUrl: METADATA.iconImageUrl,
@@ -29,26 +41,20 @@ export async function GET() {
       ogDescription: METADATA.description,
       ogImageUrl: METADATA.bannerImageUrl,
 
-      primaryCategory: "developer-tools",
-      tags: ["base", "baserush", "miniapp", "game", "baseapp"],
+      primaryCategory: "games",
+      tags: ["base", "baserush", "miniapp", "game", "rewards"],
 
       requiredCapabilities: [
         "actions.ready",
-        "actions.signIn",
         "actions.openMiniApp",
         "actions.addMiniApp",
         "actions.openUrl",
-        "actions.sendToken",
-        "actions.viewToken",
-        "actions.composeCast",
-        "actions.viewProfile",
-        "actions.swapToken",
         "actions.close",
-        "actions.viewCast",
         "wallet.getEthereumProvider",
       ],
 
       requiredChains: ["eip155:8453"],
+
       noindex: false,
     },
 
