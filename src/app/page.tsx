@@ -1,13 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  useAccount,
-  useWriteContract,
-  useConnect,
-  useDisconnect,
-  useChainId,
-} from "wagmi";
+import { useAccount, useWriteContract } from "wagmi";
+import { useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 
 /* ---------------- CONFIG ---------------- */
@@ -17,11 +12,12 @@ const MAX_TIME = 30;
 const PENALTY = 2;
 
 /* Mining Config */
-const MINING_RATE = 0.05; // Points per second
-const MAX_DAILY_POINTS = 100;
 const MIN_CLAIM_POINTS = 5;
+const DAILY_CAP = 100;
+const MINING_DURATION = 24 * 60 * 60 * 1000; // 24h
+const MINING_RATE = DAILY_CAP / (24 * 60 * 60); // ≈ 0.0011574 point/sec
 
-/* Dummy claim contract (later real token contract) */
+/* Dummy claim contract */
 const CLAIM_CONTRACT = {
   address: "0x0000D14CCf81aD6a9e7b8f03b1F94d57015fCD06" as `0x${string}`,
   abi: [
@@ -45,16 +41,16 @@ type Cell = {
 
 export default function Page() {
   const { address, isConnected } = useAccount();
-  const chainId = useChainId();
-  const { writeContractAsync } = useWriteContract();
   const { connect } = useConnect();
   const { disconnect } = useDisconnect();
+  const { writeContractAsync } = useWriteContract();
 
   /* ----------- MINING STATES ----------- */
   const [miningPoints, setMiningPoints] = useState(0);
-  const [isMining, setIsMining] = useState(false);
-  const [lastUpdateAt, setLastUpdateAt] = useState<number>(0);
-  const [lastMiningDate, setLastMiningDate] = useState<string>("");
+  const [startMiningAt, setStartMiningAt] = useState<number | null>(null);
+  const [lastMiningAt, setLastMiningAt] = useState<number | null>(null);
+  const [remainingTime, setRemainingTime] = useState(0);
+  const [status, setStatus] = useState("Idle");
 
   /* ----------- GAME STATES ----------- */
   const [grid, setGrid] = useState<Cell[]>([]);
@@ -62,7 +58,6 @@ export default function Page() {
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [gameScore, setGameScore] = useState(0);
-  const [status, setStatus] = useState("Idle");
   const [reward, setReward] = useState(0);
   const [gameMode, setGameMode] = useState(false);
 
@@ -70,75 +65,65 @@ export default function Page() {
   useEffect(() => {
     window.parent.postMessage({ type: "miniapp.ready", version: 1 }, "*");
 
-    const mp = parseFloat(localStorage.getItem("mining_points") || "0");
-    const lm = localStorage.getItem("last_mining_date") || "";
-    const lu = Number(localStorage.getItem("last_update_at") || "0");
-    const im = localStorage.getItem("is_mining") === "true";
+    const storedStart = localStorage.getItem("start_mining_at");
+    const storedLast = localStorage.getItem("last_mining_at");
+    const storedPoints = localStorage.getItem("mining_points");
 
-    const today = new Date().toISOString().slice(0, 10);
-    if (lm !== today) {
-      localStorage.setItem("last_mining_date", today);
-      setMiningPoints(0);
-    } else {
-      setMiningPoints(mp);
-    }
-
-    setIsMining(im);
-    setLastUpdateAt(lu);
-    setLastMiningDate(today);
+    if (storedStart) setStartMiningAt(Number(storedStart));
+    if (storedLast) setLastMiningAt(Number(storedLast));
+    if (storedPoints) setMiningPoints(Number(storedPoints));
   }, []);
 
-  /* ---------------- MINING LOGIC ---------------- */
+  /* ---------------- MINING PROGRESS ---------------- */
   useEffect(() => {
-    if (!isMining) return;
-    const timer = setInterval(() => {
+    const interval = setInterval(() => {
+      if (!startMiningAt) return;
+
       const now = Date.now();
-      const delta = (now - lastUpdateAt) / 1000;
-      let newPoints = miningPoints + delta * MINING_RATE;
-      if (newPoints >= MAX_DAILY_POINTS) {
-        newPoints = MAX_DAILY_POINTS;
-        setIsMining(false);
-        localStorage.setItem("is_mining", "false");
+      const elapsed = now - startMiningAt;
+
+      if (elapsed >= MINING_DURATION) {
+        setRemainingTime(0);
+        return;
       }
+
+      const newPoints = Math.min((elapsed / 1000) * MINING_RATE, DAILY_CAP);
       setMiningPoints(newPoints);
-      setLastUpdateAt(now);
+      setRemainingTime(MINING_DURATION - elapsed);
 
       localStorage.setItem("mining_points", newPoints.toString());
-      localStorage.setItem("last_update_at", now.toString());
+      localStorage.setItem("last_mining_at", now.toString());
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [isMining, miningPoints, lastUpdateAt]);
+    return () => clearInterval(interval);
+  }, [startMiningAt]);
 
   const startMining = () => {
-    if (!isConnected) return alert("⚠️ Connect your wallet first");
-    if (chainId !== 8453) return alert("Please switch to Base Mainnet");
-    if (miningPoints >= MAX_DAILY_POINTS)
-      return alert("You've reached your daily 100 point cap!");
+    if (!isConnected) return alert("⚠️ Wallet not connected");
+    if (startMiningAt && Date.now() - startMiningAt < MINING_DURATION)
+      return alert("⏳ Mining already in progress");
 
-    setIsMining(true);
-    setLastUpdateAt(Date.now());
-    localStorage.setItem("is_mining", "true");
-    localStorage.setItem("last_update_at", Date.now().toString());
+    const now = Date.now();
+    setStartMiningAt(now);
+    localStorage.setItem("start_mining_at", now.toString());
     setStatus("Mining started 🪙");
   };
 
-  const stopMining = () => {
-    setIsMining(false);
-    localStorage.setItem("is_mining", "false");
-    setStatus("Mining paused ⏸️");
+  const formatTime = (ms: number) => {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return `${h}h ${m}m ${s}s`;
   };
 
   const claimMining = async () => {
     if (miningPoints < MIN_CLAIM_POINTS)
       return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim`);
-    if (!isConnected) return alert("⚠️ Connect your wallet first");
-    if (chainId !== 8453) return alert("Please switch to Base Mainnet");
 
     try {
       setStatus("Claiming mining reward...");
-      const amountToClaim = Math.min(miningPoints, MAX_DAILY_POINTS);
-      const amount = BigInt(Math.floor(amountToClaim)) * 10n ** 18n;
+      const amount = BigInt(Math.floor(miningPoints)) * 10n ** 18n;
 
       await writeContractAsync({
         address: CLAIM_CONTRACT.address,
@@ -147,13 +132,12 @@ export default function Page() {
         args: [amount],
       });
 
-      const remaining = miningPoints - amountToClaim;
-      setMiningPoints(remaining);
-      localStorage.setItem("mining_points", remaining.toString());
-      setStatus(`Claimed ${amountToClaim} points ✅`);
+      setMiningPoints(0);
+      localStorage.setItem("mining_points", "0");
+      setStatus("Mining reward claimed ✅");
     } catch (err) {
       console.error(err);
-      setStatus("Mining claim failed ❌");
+      setStatus("Claim failed ❌");
     }
   };
 
@@ -164,7 +148,7 @@ export default function Page() {
       setTime((v) => {
         if (v + 1 >= MAX_TIME) {
           clearInterval(timer);
-          if (!finished) endGame();
+          endGame();
           return v;
         }
         return v + 1;
@@ -204,14 +188,6 @@ export default function Page() {
     setStatus("Game exited");
   };
 
-  const calculateReward = (score: number) => {
-    if (score >= 12000) return 10;
-    if (score >= 10000) return 7;
-    if (score >= 7000) return 4;
-    if (score >= 4000) return 2;
-    return 0;
-  };
-
   const clickCell = (id: number) => {
     if (!running || finished) return;
     setGrid((prev) => {
@@ -219,15 +195,25 @@ export default function Page() {
         c.id === id && !c.clicked ? { ...c, clicked: true } : c
       );
 
-      const clickedCell = prev.find((c) => c.id === id);
-      if (clickedCell && clickedCell.color === "red") {
+      const clicked = prev.find((c) => c.id === id);
+      if (clicked && clicked.color === "red") {
         setGameScore((s) => Math.max(s - PENALTY * 100, 0));
       }
 
-      const remain = updated.filter((c) => c.color === "blue" && !c.clicked).length;
+      const remain = updated.filter(
+        (c) => c.color === "blue" && !c.clicked
+      ).length;
       if (remain === 0) endGame();
       return updated;
     });
+  };
+
+  const calculateReward = (score: number) => {
+    if (score >= 12000) return 10;
+    if (score >= 10000) return 7;
+    if (score >= 7000) return 4;
+    if (score >= 4000) return 2;
+    return 0;
   };
 
   const endGame = () => {
@@ -242,21 +228,24 @@ export default function Page() {
 
   const claimGame = async () => {
     if (reward <= 0) return alert("No reward to claim");
+
     try {
       setStatus("Claiming game reward...");
       const amount = BigInt(reward) * 10n ** 18n;
+
       await writeContractAsync({
         address: CLAIM_CONTRACT.address,
         abi: CLAIM_CONTRACT.abi,
         functionName: "claim",
         args: [amount],
       });
+
       setReward(0);
       setGameScore(0);
       setStatus("Game reward claimed ✅");
     } catch (err) {
       console.error(err);
-      setStatus("Game claim failed ❌");
+      setStatus("Claim failed ❌");
     }
   };
 
@@ -289,7 +278,7 @@ export default function Page() {
               Mining + Tap Puzzle Game
             </p>
 
-            {/* Wallet Connection */}
+            {/* Wallet */}
             <div
               style={{
                 padding: "10px 12px",
@@ -300,13 +289,10 @@ export default function Page() {
               }}
             >
               {isConnected ? (
-                <span>
-                  Wallet: <b>{address}</b>
-                </span>
+                <span>Wallet: <b>{address}</b></span>
               ) : (
                 <span>Wallet not connected</span>
               )}
-
               {!isConnected ? (
                 <button
                   onClick={() => connect({ connector: injected() })}
@@ -369,44 +355,48 @@ export default function Page() {
               >
                 <span style={{ fontSize: 14, color: "#6b7280" }}>Points</span>
                 <span style={{ fontSize: 20, fontWeight: 600 }}>
-                  {miningPoints.toFixed(2)} / {MAX_DAILY_POINTS}
+                  {miningPoints.toFixed(2)} / {DAILY_CAP}
                 </span>
               </div>
 
+              {startMiningAt && remainingTime > 0 && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    background: "#fef3c7",
+                    color: "#92400e",
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    textAlign: "center",
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  ⏳ Next mining in {formatTime(remainingTime)}
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                {!isMining ? (
-                  <button
-                    onClick={startMining}
-                    style={{
-                      flex: 1,
-                      padding: "10px 0",
-                      borderRadius: 10,
-                      border: "none",
-                      background: "#0ea5e9",
-                      color: "#fff",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Start
-                  </button>
-                ) : (
-                  <button
-                    onClick={stopMining}
-                    style={{
-                      flex: 1,
-                      padding: "10px 0",
-                      borderRadius: 10,
-                      border: "none",
-                      background: "#f59e0b",
-                      color: "#fff",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Pause
-                  </button>
-                )}
+                <button
+                  onClick={startMining}
+                  disabled={!!(startMiningAt && remainingTime > 0)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 0",
+                    borderRadius: 10,
+                    border: "none",
+                    background:
+                      startMiningAt && remainingTime > 0 ? "#94a3b8" : "#0ea5e9",
+                    color: "#fff",
+                    fontWeight: 600,
+                    cursor:
+                      startMiningAt && remainingTime > 0
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  Start Mining
+                </button>
 
                 <button
                   onClick={claimMining}
@@ -537,9 +527,6 @@ export default function Page() {
                     : "#ef4444",
                   borderRadius: 12,
                   cursor: "pointer",
-                  boxShadow: c.clicked
-                    ? "none"
-                    : "0 4px 10px rgba(0,0,0,0.12)",
                 }}
               />
             ))}
@@ -557,9 +544,17 @@ export default function Page() {
               border: "1px solid #86efac",
             }}
           >
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#166534" }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#166534",
+              }}
+            >
               🎉 Game Finished
             </p>
+
             <p
               style={{
                 margin: "6px 0 14px",
