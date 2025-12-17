@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useWriteContract, useConnect, useDisconnect, useChainId } from "wagmi";
+import {
+  useAccount,
+  useWriteContract,
+  useConnect,
+  useDisconnect,
+  useChainId,
+} from "wagmi";
 import { injected } from "wagmi/connectors";
 
 /* ---------------- CONFIG ---------------- */
@@ -275,6 +281,7 @@ export default function Page() {
           boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
         }}
       >
+        {/* Header */}
         {!gameMode && (
           <>
             <h2 style={{ margin: 0 }}>Base Mini App</h2>
@@ -282,19 +289,24 @@ export default function Page() {
               Mining + Tap Puzzle Game
             </p>
 
+            {/* Wallet Connection */}
             <div
               style={{
                 padding: "10px 12px",
                 borderRadius: 10,
                 background: "#f1f5f9",
                 fontSize: 14,
+                marginBottom: 16,
               }}
             >
               {isConnected ? (
-                <span>Wallet: <b>{address}</b></span>
+                <span>
+                  Wallet: <b>{address}</b>
+                </span>
               ) : (
                 <span>Wallet not connected</span>
               )}
+
               {!isConnected ? (
                 <button
                   onClick={() => connect({ connector: injected() })}
@@ -330,14 +342,14 @@ export default function Page() {
               )}
             </div>
 
-            {/* MINING CARD */}
+            {/* Mining Section */}
             <div
               style={{
                 background: "#f8fafc",
                 borderRadius: 14,
                 padding: 14,
-                marginTop: 16,
                 border: "1px solid #e5e7eb",
+                marginBottom: 16,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
@@ -376,7 +388,7 @@ export default function Page() {
                       cursor: "pointer",
                     }}
                   >
-                    Start Mining
+                    Start
                   </button>
                 ) : (
                   <button
@@ -403,7 +415,7 @@ export default function Page() {
                     padding: "10px 0",
                     borderRadius: 10,
                     border: "1px solid #0ea5e9",
-                    background: "#ffffff",
+                    background: "#fff",
                     color: "#0ea5e9",
                     fontWeight: 600,
                     cursor: "pointer",
@@ -413,11 +425,188 @@ export default function Page() {
                 </button>
               </div>
             </div>
+
+            {/* Game Section */}
+            <div
+              style={{
+                background: "#f8fafc",
+                borderRadius: 14,
+                padding: 14,
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 18, marginRight: 6 }}>🎮</span>
+                <h4 style={{ margin: 0 }}>Game</h4>
+              </div>
+
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  marginBottom: 8,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: 14,
+                }}
+              >
+                <span style={{ color: "#6b7280" }}>Time</span>
+                <span>
+                  {time}s / {MAX_TIME}s
+                </span>
+              </div>
+
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  marginBottom: 10,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: 14,
+                }}
+              >
+                <span style={{ color: "#6b7280" }}>Score</span>
+                <span style={{ fontSize: 18, fontWeight: 600 }}>{gameScore}</span>
+              </div>
+
+              {!running && !finished && (
+                <button
+                  onClick={startGame}
+                  style={{
+                    width: "100%",
+                    padding: "12px 0",
+                    borderRadius: 10,
+                    border: "none",
+                    background: "#22c55e",
+                    color: "#ffffff",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Start Game
+                </button>
+              )}
+
+              {running && (
+                <button
+                  onClick={exitGame}
+                  style={{
+                    width: "100%",
+                    padding: "12px 0",
+                    borderRadius: 10,
+                    border: "none",
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    marginTop: 10,
+                  }}
+                >
+                  Exit Game
+                </button>
+              )}
+            </div>
           </>
         )}
 
-        {/* Game UI stays the same */}
-        {/** ... Game section same as before ... */}
+        {/* GAME GRID */}
+        {grid.length > 0 && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(5, 1fr)",
+              gap: 10,
+              marginTop: 16,
+            }}
+          >
+            {grid.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => clickCell(c.id)}
+                style={{
+                  aspectRatio: "1 / 1",
+                  background: c.clicked
+                    ? "#e5e7eb"
+                    : c.color === "blue"
+                    ? "#3b82f6"
+                    : "#ef4444",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  boxShadow: c.clicked
+                    ? "none"
+                    : "0 4px 10px rgba(0,0,0,0.12)",
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* GAME FINISHED */}
+        {finished && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: 16,
+              borderRadius: 16,
+              background: "#f0fdf4",
+              border: "1px solid #86efac",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#166534" }}>
+              🎉 Game Finished
+            </p>
+            <p
+              style={{
+                margin: "6px 0 14px",
+                fontSize: 26,
+                fontWeight: 800,
+                color: "#14532d",
+              }}
+            >
+              Score: {gameScore}
+            </p>
+
+            {reward > 0 && (
+              <button
+                onClick={claimGame}
+                style={{
+                  width: "100%",
+                  padding: "12px 0",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "#16a34a",
+                  color: "#ffffff",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  marginTop: 12,
+                }}
+              >
+                🎁 Claim Game Reward ({reward})
+              </button>
+            )}
+
+            <button
+              onClick={exitGame}
+              style={{
+                width: "100%",
+                padding: "10px 0",
+                borderRadius: 12,
+                border: "1px solid #22c55e",
+                background: "#ffffff",
+                color: "#166534",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Exit Game
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
