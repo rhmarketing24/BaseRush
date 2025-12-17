@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useWriteContract } from "wagmi";
-import { useConnect, useDisconnect } from "wagmi";
+import { useAccount, useWriteContract, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 
 /* ---------------- CONFIG ---------------- */
@@ -12,10 +11,10 @@ const MAX_TIME = 30;
 const PENALTY = 2;
 
 /* Mining Config */
-const MIN_CLAIM_POINTS = 5;
 const DAILY_CAP = 100;
 const MINING_DURATION = 24 * 60 * 60 * 1000; // 24h
 const MINING_RATE = DAILY_CAP / (24 * 60 * 60); // ≈ 0.0011574 point/sec
+const MIN_CLAIM_POINTS = 5;
 
 /* Dummy claim contract */
 const CLAIM_CONTRACT = {
@@ -48,7 +47,6 @@ export default function Page() {
   /* ----------- MINING STATES ----------- */
   const [miningPoints, setMiningPoints] = useState(0);
   const [startMiningAt, setStartMiningAt] = useState<number | null>(null);
-  const [lastMiningAt, setLastMiningAt] = useState<number | null>(null);
   const [remainingTime, setRemainingTime] = useState(0);
   const [status, setStatus] = useState("Idle");
 
@@ -66,11 +64,9 @@ export default function Page() {
     window.parent.postMessage({ type: "miniapp.ready", version: 1 }, "*");
 
     const storedStart = localStorage.getItem("start_mining_at");
-    const storedLast = localStorage.getItem("last_mining_at");
     const storedPoints = localStorage.getItem("mining_points");
 
     if (storedStart) setStartMiningAt(Number(storedStart));
-    if (storedLast) setLastMiningAt(Number(storedLast));
     if (storedPoints) setMiningPoints(Number(storedPoints));
   }, []);
 
@@ -84,15 +80,14 @@ export default function Page() {
 
       if (elapsed >= MINING_DURATION) {
         setRemainingTime(0);
+        setMiningPoints(DAILY_CAP);
         return;
       }
 
       const newPoints = Math.min((elapsed / 1000) * MINING_RATE, DAILY_CAP);
       setMiningPoints(newPoints);
       setRemainingTime(MINING_DURATION - elapsed);
-
       localStorage.setItem("mining_points", newPoints.toString());
-      localStorage.setItem("last_mining_at", now.toString());
     }, 1000);
 
     return () => clearInterval(interval);
@@ -101,7 +96,7 @@ export default function Page() {
   const startMining = () => {
     if (!isConnected) return alert("⚠️ Wallet not connected");
     if (startMiningAt && Date.now() - startMiningAt < MINING_DURATION)
-      return alert("⏳ Mining already in progress");
+      return alert("⏳ Mining already running. Please wait 24h.");
 
     const now = Date.now();
     setStartMiningAt(now);
@@ -119,7 +114,7 @@ export default function Page() {
 
   const claimMining = async () => {
     if (miningPoints < MIN_CLAIM_POINTS)
-      return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim`);
+      return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim.`);
 
     try {
       setStatus("Claiming mining reward...");
@@ -188,6 +183,14 @@ export default function Page() {
     setStatus("Game exited");
   };
 
+  const calculateReward = (score: number) => {
+    if (score >= 12000) return 10;
+    if (score >= 10000) return 7;
+    if (score >= 7000) return 4;
+    if (score >= 4000) return 2;
+    return 0;
+  };
+
   const clickCell = (id: number) => {
     if (!running || finished) return;
     setGrid((prev) => {
@@ -206,14 +209,6 @@ export default function Page() {
       if (remain === 0) endGame();
       return updated;
     });
-  };
-
-  const calculateReward = (score: number) => {
-    if (score >= 12000) return 10;
-    if (score >= 10000) return 7;
-    if (score >= 7000) return 4;
-    if (score >= 4000) return 2;
-    return 0;
   };
 
   const endGame = () => {
@@ -289,10 +284,13 @@ export default function Page() {
               }}
             >
               {isConnected ? (
-                <span>Wallet: <b>{address}</b></span>
+                <span>
+                  Wallet: <b>{address}</b>
+                </span>
               ) : (
                 <span>Wallet not connected</span>
               )}
+
               {!isConnected ? (
                 <button
                   onClick={() => connect({ connector: injected() })}
@@ -355,7 +353,7 @@ export default function Page() {
               >
                 <span style={{ fontSize: 14, color: "#6b7280" }}>Points</span>
                 <span style={{ fontSize: 20, fontWeight: 600 }}>
-                  {miningPoints.toFixed(2)} / {DAILY_CAP}
+                  {miningPoints.toFixed(4)} / {DAILY_CAP}
                 </span>
               </div>
 
