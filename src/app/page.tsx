@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useWriteContract, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useWriteContract } from "wagmi";
+
+import { useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
+
+
+
 
 /* ---------------- CONFIG ---------------- */
 const GRID_SIZE = 25;
@@ -10,13 +15,7 @@ const BLUE_COUNT = 13;
 const MAX_TIME = 30;
 const PENALTY = 2;
 
-/* Mining Config */
-const DAILY_CAP = 100;
-const MINING_DURATION = 24 * 60 * 60 * 1000; // 24h
-const MINING_RATE = DAILY_CAP / (24 * 60 * 60); // ≈ 0.0011574 point/sec
-const MIN_CLAIM_POINTS = 5;
-
-/* Dummy claim contract */
+/* Dummy claim contract (later real token contract) */
 const CLAIM_CONTRACT = {
   address: "0x0000D14CCf81aD6a9e7b8f03b1F94d57015fCD06" as `0x${string}`,
   abi: [
@@ -30,6 +29,7 @@ const CLAIM_CONTRACT = {
   ],
 };
 
+
 /* ---------------------------------------- */
 
 type Cell = {
@@ -40,85 +40,102 @@ type Cell = {
 
 export default function Page() {
   const { address, isConnected } = useAccount();
-  const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
   const { writeContractAsync } = useWriteContract();
 
-  /* ----------- MINING STATES ----------- */
-  const [miningPoints, setMiningPoints] = useState(0);
-  const [startMiningAt, setStartMiningAt] = useState<number | null>(null);
-  const [remainingTime, setRemainingTime] = useState(0);
-  const [status, setStatus] = useState("Idle");
+  const { connect } = useConnect();
+  const { disconnect } = useDisconnect();
 
-  /* ----------- GAME STATES ----------- */
+
+  /* ----------- MINING ----------- */
+  const [miningPoints, setMiningPoints] = useState(0);
+  const [lastMiningAt, setLastMiningAt] = useState<number>(0);
+
+  /* ----------- GAME ----------- */
   const [grid, setGrid] = useState<Cell[]>([]);
   const [time, setTime] = useState(0);
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [gameScore, setGameScore] = useState(0);
+  const [status, setStatus] = useState("Idle");
   const [reward, setReward] = useState(0);
   const [gameMode, setGameMode] = useState(false);
+  const [remainingTime, setRemainingTime] = useState(0);
 
   /* ---------------- INITIAL LOAD ---------------- */
   useEffect(() => {
     window.parent.postMessage({ type: "miniapp.ready", version: 1 }, "*");
 
-    const storedStart = localStorage.getItem("start_mining_at");
-    const storedPoints = localStorage.getItem("mining_points");
+    const mp = localStorage.getItem("mining_points");
+    const gs = localStorage.getItem("game_score");
+    const lm = localStorage.getItem("last_mining_at");
 
-    if (storedStart) setStartMiningAt(Number(storedStart));
-    if (storedPoints) setMiningPoints(Number(storedPoints));
+    if (mp) setMiningPoints(Number(mp));
+    if (gs) setGameScore(Number(gs));
+    if (lm) setLastMiningAt(Number(lm));
   }, []);
 
-  /* ---------------- MINING PROGRESS ---------------- */
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!startMiningAt) return;
+  /* ---------------- SAVE HELPERS ---------------- */
+  const saveMining = (v: number) => {
+    setMiningPoints(v);
+    localStorage.setItem("mining_points", v.toString());
+  };
 
-      const now = Date.now();
-      const elapsed = now - startMiningAt;
+  const saveGameScore = (v: number) => {
+    setGameScore(v);
+    localStorage.setItem("game_score", v.toString());
+  };
 
-      if (elapsed >= MINING_DURATION) {
-        setRemainingTime(0);
-        setMiningPoints(DAILY_CAP);
-        return;
-      }
+  /* ---------------- MINING LOGIC ---------------- */
+  const COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
 
-      const newPoints = Math.min((elapsed / 1000) * MINING_RATE, DAILY_CAP);
-      setMiningPoints(newPoints);
-      setRemainingTime(MINING_DURATION - elapsed);
-      localStorage.setItem("mining_points", newPoints.toString());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [startMiningAt]);
-
-  const startMining = () => {
-    if (!isConnected) return alert("⚠️ Wallet not connected");
-    if (startMiningAt && Date.now() - startMiningAt < MINING_DURATION)
-      return alert("⏳ Mining already running. Please wait 24h.");
-
+  const getRemainingTime = () => {
     const now = Date.now();
-    setStartMiningAt(now);
-    localStorage.setItem("start_mining_at", now.toString());
-    setStatus("Mining started 🪙");
+    if (!lastMiningAt) return 0;
+    const diff = COOLDOWN - (now - lastMiningAt);
+    return diff > 0 ? diff : 0;
   };
 
   const formatTime = (ms: number) => {
-    const total = Math.max(0, Math.floor(ms / 1000));
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    return `${h}h ${m}m ${s}s`;
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  // Live countdown updater
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRemainingTime(getRemainingTime());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lastMiningAt]);
+
+  const startMining = () => {
+    if (!isConnected) return alert("⚠️ Wallet not connected");
+
+    const now = Date.now();
+
+    if (now - lastMiningAt < COOLDOWN) {
+      const left = Math.ceil(
+        (COOLDOWN - (now - lastMiningAt)) / (1000 * 60 * 60)
+      );
+      return alert(`⏳ Cooldown active. Try again in ${left} hours`);
+    }
+
+    saveMining(miningPoints + 100);
+    setLastMiningAt(now);
+    localStorage.setItem("last_mining_at", now.toString());
+    setStatus("Mining started (+100 points)");
   };
 
   const claimMining = async () => {
-    if (miningPoints < MIN_CLAIM_POINTS)
-      return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim.`);
+    if (miningPoints <= 0) return alert("No mining points");
 
     try {
       setStatus("Claiming mining reward...");
-      const amount = BigInt(Math.floor(miningPoints)) * 10n ** 18n;
+
+      const amount = BigInt(miningPoints) * 10n ** 18n; // ERC20 decimals
 
       await writeContractAsync({
         address: CLAIM_CONTRACT.address,
@@ -127,14 +144,14 @@ export default function Page() {
         args: [amount],
       });
 
-      setMiningPoints(0);
-      localStorage.setItem("mining_points", "0");
+      saveMining(0);
       setStatus("Mining reward claimed ✅");
     } catch (err) {
       console.error(err);
-      setStatus("Claim failed ❌");
+      setStatus("Mining claim failed / rejected ❌");
     }
   };
+
 
   /* ---------------- GAME LOGIC ---------------- */
   useEffect(() => {
@@ -178,7 +195,6 @@ export default function Page() {
     setFinished(false);
     setGrid([]);
     setTime(0);
-    setReward(0);
     setGameMode(false);
     setStatus("Game exited");
   };
@@ -198,14 +214,10 @@ export default function Page() {
         c.id === id && !c.clicked ? { ...c, clicked: true } : c
       );
 
-      const clicked = prev.find((c) => c.id === id);
-      if (clicked && clicked.color === "red") {
-        setGameScore((s) => Math.max(s - PENALTY * 100, 0));
-      }
-
       const remain = updated.filter(
         (c) => c.color === "blue" && !c.clicked
       ).length;
+
       if (remain === 0) endGame();
       return updated;
     });
@@ -214,10 +226,14 @@ export default function Page() {
   const endGame = () => {
     setRunning(false);
     setFinished(true);
+
     const score = Math.max(BLUE_COUNT * 1000 - time * 100, 0);
+    saveGameScore(score);
     setGameScore(score);
+
     const r = calculateReward(score);
     setReward(r);
+
     setStatus("Game finished 🎯");
   };
 
@@ -226,7 +242,8 @@ export default function Page() {
 
     try {
       setStatus("Claiming game reward...");
-      const amount = BigInt(reward) * 10n ** 18n;
+
+      const amount = BigInt(reward) * 10n ** 18n; // ERC20 decimals
 
       await writeContractAsync({
         address: CLAIM_CONTRACT.address,
@@ -235,16 +252,25 @@ export default function Page() {
         args: [amount],
       });
 
+      // clean up after claim
       setReward(0);
       setGameScore(0);
+      saveGameScore(0);
+
       setStatus("Game reward claimed ✅");
     } catch (err) {
       console.error(err);
-      setStatus("Claim failed ❌");
+      setStatus("Game claim failed / rejected ❌");
     }
   };
 
+
   /* ---------------- UI ---------------- */
+
+
+
+
+
   return (
     <div
       style={{
@@ -265,22 +291,20 @@ export default function Page() {
           boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
         }}
       >
-        {/* Header */}
+        {/* HEADER */}
         {!gameMode && (
-          <>
+          <div style={{ marginBottom: 16 }}>
             <h2 style={{ margin: 0 }}>Base Mini App</h2>
             <p style={{ margin: "4px 0 12px", color: "#6b7280", fontSize: 14 }}>
               Mining + Tap Puzzle Game
             </p>
 
-            {/* Wallet */}
             <div
               style={{
                 padding: "10px 12px",
                 borderRadius: 10,
                 background: "#f1f5f9",
                 fontSize: 14,
-                marginBottom: 16,
               }}
             >
               {isConnected ? (
@@ -324,212 +348,222 @@ export default function Page() {
                   Disconnect
                 </button>
               )}
+
+
             </div>
-
-            {/* Mining Section */}
-            <div
-              style={{
-                background: "#f8fafc",
-                borderRadius: 14,
-                padding: 14,
-                border: "1px solid #e5e7eb",
-                marginBottom: 16,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 18, marginRight: 6 }}>⛏️</span>
-                <h4 style={{ margin: 0 }}>Mining</h4>
-              </div>
-
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span style={{ fontSize: 14, color: "#6b7280" }}>Points</span>
-                <span style={{ fontSize: 20, fontWeight: 600 }}>
-                  {miningPoints.toFixed(4)} / {DAILY_CAP}
-                </span>
-              </div>
-
-              {startMiningAt && remainingTime > 0 && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    background: "#fef3c7",
-                    color: "#92400e",
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    textAlign: "center",
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
-                >
-                  ⏳ Next mining in {formatTime(remainingTime)}
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                <button
-                  onClick={startMining}
-                  disabled={!!(startMiningAt && remainingTime > 0)}
-                  style={{
-                    flex: 1,
-                    padding: "10px 0",
-                    borderRadius: 10,
-                    border: "none",
-                    background:
-                      startMiningAt && remainingTime > 0 ? "#94a3b8" : "#0ea5e9",
-                    color: "#fff",
-                    fontWeight: 600,
-                    cursor:
-                      startMiningAt && remainingTime > 0
-                        ? "not-allowed"
-                        : "pointer",
-                  }}
-                >
-                  Start Mining
-                </button>
-
-                <button
-                  onClick={claimMining}
-                  style={{
-                    flex: 1,
-                    padding: "10px 0",
-                    borderRadius: 10,
-                    border: "1px solid #0ea5e9",
-                    background: "#fff",
-                    color: "#0ea5e9",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Claim
-                </button>
-              </div>
-            </div>
-
-            {/* Game Section */}
-            <div
-              style={{
-                background: "#f8fafc",
-                borderRadius: 14,
-                padding: 14,
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ fontSize: 18, marginRight: 6 }}>🎮</span>
-                <h4 style={{ margin: 0 }}>Game</h4>
-              </div>
-
-              <div
-                style={{
-                  background: "#ffffff",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  marginBottom: 8,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: 14,
-                }}
-              >
-                <span style={{ color: "#6b7280" }}>Time</span>
-                <span>
-                  {time}s / {MAX_TIME}s
-                </span>
-              </div>
-
-              <div
-                style={{
-                  background: "#ffffff",
-                  borderRadius: 10,
-                  padding: "10px 12px",
-                  marginBottom: 10,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: 14,
-                }}
-              >
-                <span style={{ color: "#6b7280" }}>Score</span>
-                <span style={{ fontSize: 18, fontWeight: 600 }}>{gameScore}</span>
-              </div>
-
-              {!running && !finished && (
-                <button
-                  onClick={startGame}
-                  style={{
-                    width: "100%",
-                    padding: "12px 0",
-                    borderRadius: 10,
-                    border: "none",
-                    background: "#22c55e",
-                    color: "#ffffff",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Start Game
-                </button>
-              )}
-
-              {running && (
-                <button
-                  onClick={exitGame}
-                  style={{
-                    width: "100%",
-                    padding: "12px 0",
-                    borderRadius: 10,
-                    border: "none",
-                    background: "#ef4444",
-                    color: "#ffffff",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    marginTop: 10,
-                  }}
-                >
-                  Exit Game
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* GAME GRID */}
-        {grid.length > 0 && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
-              gap: 10,
-              marginTop: 16,
-            }}
-          >
-            {grid.map((c) => (
-              <div
-                key={c.id}
-                onClick={() => clickCell(c.id)}
-                style={{
-                  aspectRatio: "1 / 1",
-                  background: c.clicked
-                    ? "#e5e7eb"
-                    : c.color === "blue"
-                    ? "#3b82f6"
-                    : "#ef4444",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                }}
-              />
-            ))}
           </div>
         )}
+
+        {/* MINING CARD */}
+        {!gameMode && (
+          <div
+            style={{
+              background: "#f8fafc",
+              borderRadius: 14,
+              padding: 14,
+              marginBottom: 16,
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: 18, marginRight: 6 }}>⛏️</span>
+              <h4 style={{ margin: 0 }}>Mining</h4>
+            </div>
+
+            <div
+              style={{
+                background: "#ffffff",
+                borderRadius: 10,
+                padding: "10px 12px",
+                marginBottom: 10,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontSize: 14, color: "#6b7280" }}>Points</span>
+              <span style={{ fontSize: 20, fontWeight: 600 }}>{miningPoints}</span>
+            </div>
+
+            {remainingTime > 0 && (
+              <div
+                style={{
+                  marginTop: 8,
+                  marginBottom: 10,
+                  padding: "6px 10px",
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  textAlign: "center",
+                  fontWeight: 500,
+                }}
+              >
+                ⏳ Next mining in {formatTime(remainingTime)}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={startMining}
+                disabled={remainingTime > 0}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  borderRadius: 10,
+                  border: "none",
+                  background: remainingTime > 0 ? "#94a3b8" : "#0ea5e9",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  cursor: remainingTime > 0 ? "not-allowed" : "pointer",
+                }}
+              >
+                Start Mining
+              </button>
+
+
+              <button
+                onClick={claimMining}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  borderRadius: 10,
+                  border: "1px solid #0ea5e9",
+                  background: "#ffffff",
+                  color: "#0ea5e9",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Claim
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* GAME CARD */}
+        <div
+          style={{
+            background: "#f8fafc",
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 12,
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+            <span style={{ fontSize: 18, marginRight: 6 }}>🎮</span>
+            <h4 style={{ margin: 0 }}>Game</h4>
+          </div>
+
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: 10,
+              padding: "10px 12px",
+              marginBottom: 8,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: 14,
+            }}
+          >
+            <span style={{ color: "#6b7280" }}>Time</span>
+            <span>
+              {time}s / {MAX_TIME}s
+            </span>
+          </div>
+
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: 10,
+              padding: "10px 12px",
+              marginBottom: 10,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: 14,
+            }}
+          >
+            <span style={{ color: "#6b7280" }}>Score</span>
+            <span style={{ fontSize: 18, fontWeight: 600 }}>{gameScore}</span>
+          </div>
+
+          {!running && !finished && (
+            <button
+              onClick={startGame}
+              style={{
+                width: "100%",
+                padding: "12px 0",
+                borderRadius: 10,
+                border: "none",
+                background: "#22c55e",
+                color: "#ffffff",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Start Game
+            </button>
+          )}
+
+          {running && (
+            <button
+              onClick={exitGame}
+              style={{
+                width: "100%",
+                padding: "12px 0",
+                borderRadius: 10,
+                border: "none",
+                background: "#ef4444",
+                color: "#ffffff",
+                fontWeight: 600,
+                cursor: "pointer",
+                marginTop: 10,
+              }}
+            >
+              Exit Game
+            </button>
+          )}
+        </div>
+
+        {/* GAME GRID */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 1fr)",
+            gap: 10,
+            marginTop: 16,
+          }}
+        >
+          {grid.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => clickCell(c.id)}
+              style={{
+                aspectRatio: "1 / 1",
+                background: c.clicked
+                  ? "#e5e7eb"
+                  : c.color === "blue"
+                    ? "#3b82f6"
+                    : "#ef4444",
+                borderRadius: 12,
+                cursor: "pointer",
+                boxShadow: c.clicked
+                  ? "none"
+                  : "0 4px 10px rgba(0,0,0,0.12)",
+                transition: "transform 0.08s ease, box-shadow 0.08s ease",
+              }}
+              onMouseDown={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "scale(0.95)";
+              }}
+              onMouseUp={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
+              }}
+            />
+          ))}
+        </div>
 
         {/* GAME FINISHED */}
         {finished && (
@@ -542,14 +576,7 @@ export default function Page() {
               border: "1px solid #86efac",
             }}
           >
-            <p
-              style={{
-                margin: 0,
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#166534",
-              }}
-            >
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#166534" }}>
               🎉 Game Finished
             </p>
 
@@ -564,7 +591,7 @@ export default function Page() {
               Score: {gameScore}
             </p>
 
-            {reward > 0 && (
+            {finished && reward > 0 && (
               <button
                 onClick={claimGame}
                 style={{
