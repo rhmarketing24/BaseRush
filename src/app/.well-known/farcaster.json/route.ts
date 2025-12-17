@@ -21,11 +21,15 @@ export async function GET() {
       description: METADATA.description,
 
       homeUrl: METADATA.homeUrl,
+
+      // ✅ 1024x1024
       iconUrl: METADATA.iconImageUrl,
 
+      // 🔥 Preview / Embed / Store hero (1200x630)
       imageUrl: METADATA.bannerImageUrl,
       heroImageUrl: METADATA.bannerImageUrl,
 
+      // Optional store screenshots
       screenshotUrls: [
         "https://baserush.vercel.app/screen1.png",
         "https://baserush.vercel.app/screen2.png",
@@ -34,7 +38,8 @@ export async function GET() {
 
       webhookUrl: `${METADATA.homeUrl}/api/webhook`,
 
-      splashImageUrl: METADATA.iconImageUrl,
+      // ✅ 200x200
+      splashImageUrl: METADATA.splashImageUrl,
       splashBackgroundColor: METADATA.splashBackgroundColor,
 
       ogTitle: METADATA.name,
@@ -44,12 +49,10 @@ export async function GET() {
       primaryCategory: "games",
       tags: ["base", "baserush", "miniapp", "game", "rewards"],
 
+      // 🔥 minimal & safe
       requiredCapabilities: [
         "actions.ready",
         "actions.openMiniApp",
-        "actions.addMiniApp",
-        "actions.openUrl",
-        "actions.close",
         "wallet.getEthereumProvider",
       ],
 
