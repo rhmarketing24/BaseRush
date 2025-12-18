@@ -3,22 +3,34 @@ import "~/app/globals.css";
 import { Providers } from "~/app/providers";
 import { METADATA } from "~/lib/utils";
 
-export const metadata: Metadata = {
-  title: METADATA.name,
-
-  // 🔴 এই অংশটা Base App verification এর জন্য দরকার
-  other: {
-    "base:app_id": "69417ec2d19763ca26ddc35b",
-  },
-
-  openGraph: {
+/**
+ * ✅ Base Mini App Embed + Verification
+ * ⚠️ export const metadata ব্যবহার করা যাবে না
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  return {
     title: METADATA.name,
     description: METADATA.description,
-    images: [METADATA.bannerImageUrl],
-    url: METADATA.homeUrl,
-    siteName: METADATA.name,
-  },
-};
+
+    other: {
+      // ✅ Base App verification
+      "base:app_id": "69417ec2d19763ca26ddc35b",
+
+      // ✅ Base Embed / Image Preview (VERY IMPORTANT)
+      "fc:miniapp": JSON.stringify({
+        version: "1",
+        imageUrl: "https://baserush.vercel.app/hero.png", // 1200x630
+        button: {
+          title: "Open BaseRush",
+          action: {
+            name: "Launch BaseRush",
+            url: METADATA.homeUrl,
+          },
+        },
+      }),
+    },
+  };
+}
 
 export default function RootLayout({
   children,
