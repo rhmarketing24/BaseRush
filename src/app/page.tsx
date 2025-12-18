@@ -266,10 +266,33 @@ export default function Page() {
       >
         {/* HEADER */}
         {!gameMode && (
-          <div style={{ marginBottom: 16 }}>
-            <h2 style={{ margin: 0 }}>Base Mini App</h2>
-            <p style={{ margin: "4px 0 12px", color: "#6b7280", fontSize: 14 }}>
-              Mining + Tap Puzzle Game
+          <div
+            style={{
+              marginBottom: 16,
+              textAlign: "center",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 22,
+                fontWeight: 800,
+                color: "#0f172a",
+              }}
+            >
+              Base Rush
+            </h2>
+
+            <p
+              style={{
+                marginTop: 6,
+                marginBottom: 12,
+                fontSize: 14,
+                color: "#64748b",
+                fontWeight: 500,
+              }}
+            >
+              Play • Mine • Earn on Base
             </p>
 
             <div
@@ -278,6 +301,7 @@ export default function Page() {
                 borderRadius: 10,
                 background: "#f1f5f9",
                 fontSize: 14,
+                textAlign: "left",
               }}
             >
               {isConnected ? (
@@ -293,6 +317,7 @@ export default function Page() {
                   onClick={() => connect({ connector: injected() })}
                   style={{
                     marginTop: 8,
+                    width: "100%",
                     padding: "8px 12px",
                     borderRadius: 8,
                     border: "none",
@@ -309,6 +334,7 @@ export default function Page() {
                   onClick={() => disconnect()}
                   style={{
                     marginTop: 8,
+                    width: "100%",
                     padding: "8px 12px",
                     borderRadius: 8,
                     border: "1px solid #ef4444",
@@ -324,6 +350,7 @@ export default function Page() {
             </div>
           </div>
         )}
+
 
         {/* MINING CARD */}
         {!gameMode && (
@@ -522,8 +549,8 @@ export default function Page() {
                 background: c.clicked
                   ? "#e5e7eb"
                   : c.color === "blue"
-                  ? "#3b82f6"
-                  : "#ef4444",
+                    ? "#3b82f6"
+                    : "#ef4444",
                 borderRadius: 12,
                 cursor: "pointer",
                 boxShadow: c.clicked
