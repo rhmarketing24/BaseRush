@@ -70,70 +70,93 @@ export default function Page() {
     if (storedPoints) setMiningPoints(Number(storedPoints));
   }, []);
 
-  /* ---------------- MINING LOGIC ---------------- */
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!startMiningAt) return;
-      const now = Date.now();
-      const elapsed = now - startMiningAt;
+  /* ---------------- MINING LOGIC (FIXED) ---------------- */
 
-      if (elapsed >= MINING_DURATION) {
-        setRemainingTime(0);
-        setMiningPoints(DAILY_CAP);
-        return;
-      }
+useEffect(() => {
+  if (!startMiningAt) return;
 
-      const newPoints = Math.min((elapsed / 1000) * MINING_RATE, DAILY_CAP);
-      setMiningPoints(newPoints);
-      setRemainingTime(MINING_DURATION - elapsed);
-      localStorage.setItem("mining_points", newPoints.toString());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [startMiningAt]);
-
-  const startMining = () => {
-    if (!isConnected) return alert("⚠️ Wallet not connected");
-    if (startMiningAt && Date.now() - startMiningAt < MINING_DURATION)
-      return alert("⏳ Mining already running for today.");
-
+  const interval = setInterval(() => {
     const now = Date.now();
-    setStartMiningAt(now);
-    localStorage.setItem("start_mining_at", now.toString());
-    setStatus("Mining started 🪙");
-  };
+    const elapsed = now - startMiningAt;
 
-  const formatTime = (ms: number) => {
-    const total = Math.max(0, Math.floor(ms / 1000));
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    return `${h}h ${m}m ${s}s`;
-  };
-
-  const claimMining = async () => {
-    if (miningPoints < MIN_CLAIM_POINTS)
-      return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim.`);
-
-    try {
-      setStatus("Claiming mining reward...");
-      const amount = BigInt(Math.floor(miningPoints)) * 10n ** 18n;
-
-      await writeContractAsync({
-        address: CLAIM_CONTRACT.address,
-        abi: CLAIM_CONTRACT.abi,
-        functionName: "claim",
-        args: [amount],
-      });
-
-      setMiningPoints(0);
-      localStorage.setItem("mining_points", "0");
-      setStatus("Mining reward claimed ✅");
-    } catch (err) {
-      console.error(err);
-      setStatus("Claim failed ❌");
+    if (elapsed >= MINING_DURATION) {
+      setMiningPoints(DAILY_CAP);
+      setRemainingTime(0);
+      localStorage.setItem("mining_points", DAILY_CAP.toString());
+      return;
     }
-  };
+
+    const newPoints = Math.min(
+      (elapsed / 1000) * MINING_RATE,
+      DAILY_CAP
+    );
+
+    setMiningPoints(newPoints);
+    setRemainingTime(MINING_DURATION - elapsed);
+    localStorage.setItem("mining_points", newPoints.toString());
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [startMiningAt]);
+
+const startMining = () => {
+  if (!isConnected) return alert("⚠️ Wallet not connected");
+
+  // already mining today
+  if (startMiningAt && Date.now() - startMiningAt < MINING_DURATION) {
+    return alert("⏳ Mining already running");
+  }
+
+  const now = Date.now();
+  setStartMiningAt(now);
+  setMiningPoints(0);
+
+  localStorage.setItem("start_mining_at", now.toString());
+  localStorage.setItem("mining_points", "0");
+
+  setStatus("Mining started 🪙");
+};
+
+const formatTime = (ms: number) => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${h}h ${m}m ${s}s`;
+};
+
+const claimMining = async () => {
+  if (miningPoints < MIN_CLAIM_POINTS)
+    return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim`);
+
+  try {
+    setStatus("Claiming mining reward...");
+
+    const claimable = Math.floor(miningPoints);
+    const amount = BigInt(claimable) * 10n ** 18n;
+
+    await writeContractAsync({
+      address: CLAIM_CONTRACT.address,
+      abi: CLAIM_CONTRACT.abi,
+      functionName: "claim",
+      args: [amount],
+    });
+
+    // 🔑 VERY IMPORTANT FIX
+    const now = Date.now();
+
+    setMiningPoints(0);
+    setStartMiningAt(now);
+
+    localStorage.setItem("mining_points", "0");
+    localStorage.setItem("start_mining_at", now.toString());
+
+    setStatus(`Claimed ${claimable} mining points ✅`);
+  } catch (err) {
+    console.error(err);
+    setStatus("Claim failed ❌");
+  }
+};
 
   /* ---------------- GAME LOGIC ---------------- */
   useEffect(() => {
