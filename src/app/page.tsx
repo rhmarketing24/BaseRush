@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
-import { useConnect, useDisconnect } from "wagmi";
-import { injected } from "wagmi/connectors";
 
 /* ---------------- CONFIG ---------------- */
 const GRID_SIZE = 25;
@@ -42,8 +40,6 @@ type Cell = {
 export default function Page() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
 
   /* ----------- MINING STATES ----------- */
   const [miningPoints, setMiningPoints] = useState(0);
@@ -72,91 +68,91 @@ export default function Page() {
 
   /* ---------------- MINING LOGIC (FIXED) ---------------- */
 
-useEffect(() => {
-  if (!startMiningAt) return;
+  useEffect(() => {
+    if (!startMiningAt) return;
 
-  const interval = setInterval(() => {
-    const now = Date.now();
-    const elapsed = now - startMiningAt;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - startMiningAt;
 
-    if (elapsed >= MINING_DURATION) {
-      setMiningPoints(DAILY_CAP);
-      setRemainingTime(0);
-      localStorage.setItem("mining_points", DAILY_CAP.toString());
-      return;
+      if (elapsed >= MINING_DURATION) {
+        setMiningPoints(DAILY_CAP);
+        setRemainingTime(0);
+        localStorage.setItem("mining_points", DAILY_CAP.toString());
+        return;
+      }
+
+      const newPoints = Math.min(
+        (elapsed / 1000) * MINING_RATE,
+        DAILY_CAP
+      );
+
+      setMiningPoints(newPoints);
+      setRemainingTime(MINING_DURATION - elapsed);
+      localStorage.setItem("mining_points", newPoints.toString());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [startMiningAt]);
+
+  const startMining = () => {
+    if (!isConnected) return alert("⚠️ Wallet not connected");
+
+    // already mining today
+    if (startMiningAt && Date.now() - startMiningAt < MINING_DURATION) {
+      return alert("⏳ Mining already running");
     }
 
-    const newPoints = Math.min(
-      (elapsed / 1000) * MINING_RATE,
-      DAILY_CAP
-    );
-
-    setMiningPoints(newPoints);
-    setRemainingTime(MINING_DURATION - elapsed);
-    localStorage.setItem("mining_points", newPoints.toString());
-  }, 1000);
-
-  return () => clearInterval(interval);
-}, [startMiningAt]);
-
-const startMining = () => {
-  if (!isConnected) return alert("⚠️ Wallet not connected");
-
-  // already mining today
-  if (startMiningAt && Date.now() - startMiningAt < MINING_DURATION) {
-    return alert("⏳ Mining already running");
-  }
-
-  const now = Date.now();
-  setStartMiningAt(now);
-  setMiningPoints(0);
-
-  localStorage.setItem("start_mining_at", now.toString());
-  localStorage.setItem("mining_points", "0");
-
-  setStatus("Mining started 🪙");
-};
-
-const formatTime = (ms: number) => {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${h}h ${m}m ${s}s`;
-};
-
-const claimMining = async () => {
-  if (miningPoints < MIN_CLAIM_POINTS)
-    return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim`);
-
-  try {
-    setStatus("Claiming mining reward...");
-
-    const claimable = Math.floor(miningPoints);
-    const amount = BigInt(claimable) * 10n ** 18n;
-
-    await writeContractAsync({
-      address: CLAIM_CONTRACT.address,
-      abi: CLAIM_CONTRACT.abi,
-      functionName: "claim",
-      args: [amount],
-    });
-
-    // 🔑 VERY IMPORTANT FIX
     const now = Date.now();
-
-    setMiningPoints(0);
     setStartMiningAt(now);
+    setMiningPoints(0);
 
-    localStorage.setItem("mining_points", "0");
     localStorage.setItem("start_mining_at", now.toString());
+    localStorage.setItem("mining_points", "0");
 
-    setStatus(`Claimed ${claimable} mining points ✅`);
-  } catch (err) {
-    console.error(err);
-    setStatus("Claim failed ❌");
-  }
-};
+    setStatus("Mining started 🪙");
+  };
+
+  const formatTime = (ms: number) => {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return `${h}h ${m}m ${s}s`;
+  };
+
+  const claimMining = async () => {
+    if (miningPoints < MIN_CLAIM_POINTS)
+      return alert(`Minimum ${MIN_CLAIM_POINTS} points required to claim`);
+
+    try {
+      setStatus("Claiming mining reward...");
+
+      const claimable = Math.floor(miningPoints);
+      const amount = BigInt(claimable) * 10n ** 18n;
+
+      await writeContractAsync({
+        address: CLAIM_CONTRACT.address,
+        abi: CLAIM_CONTRACT.abi,
+        functionName: "claim",
+        args: [amount],
+      });
+
+      // 🔑 VERY IMPORTANT FIX
+      const now = Date.now();
+
+      setMiningPoints(0);
+      setStartMiningAt(now);
+
+      localStorage.setItem("mining_points", "0");
+      localStorage.setItem("start_mining_at", now.toString());
+
+      setStatus(`Claimed ${claimable} mining points ✅`);
+    } catch (err) {
+      console.error(err);
+      setStatus("Claim failed ❌");
+    }
+  };
 
   /* ---------------- GAME LOGIC ---------------- */
   useEffect(() => {
@@ -332,43 +328,9 @@ const claimMining = async () => {
                   Wallet: <b>{address}</b>
                 </span>
               ) : (
-                <span>Wallet not connected</span>
-              )}
-
-              {!isConnected ? (
-                <button
-                  onClick={() => connect({ connector: injected() })}
-                  style={{
-                    marginTop: 8,
-                    width: "100%",
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "#0ea5e9",
-                    color: "#fff",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Connect Wallet
-                </button>
-              ) : (
-                <button
-                  onClick={() => disconnect()}
-                  style={{
-                    marginTop: 8,
-                    width: "100%",
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #ef4444",
-                    background: "#fff",
-                    color: "#ef4444",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Disconnect
-                </button>
+                <span>
+                  Wallet will auto-connect when opened inside Base App
+                </span>
               )}
             </div>
           </div>
