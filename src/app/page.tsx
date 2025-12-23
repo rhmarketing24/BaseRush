@@ -41,6 +41,24 @@ export default function Page() {
   const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
 
+  /* ----------- FARCASTER / NEYNAR PREP ----------- */
+  const [fid, setFid] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "miniapp.context") {
+        if (event.data.fid) {
+          setFid(event.data.fid);
+          console.log("FID found:", event.data.fid);
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+
   /* ----------- MINING STATES ----------- */
   const [miningPoints, setMiningPoints] = useState(0);
   const [startMiningAt, setStartMiningAt] = useState<number | null>(null);
