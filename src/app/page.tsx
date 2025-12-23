@@ -46,8 +46,6 @@ export default function Page() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      console.log("Message received:", event.data);
-
       if (event.data?.type === "miniapp.context") {
         if (event.data.fid) {
           setFid(event.data.fid);
