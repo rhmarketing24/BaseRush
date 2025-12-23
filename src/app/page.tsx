@@ -46,6 +46,8 @@ export default function Page() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      console.log("Message received:", event.data);
+
       if (event.data?.type === "miniapp.context") {
         if (event.data.fid) {
           setFid(event.data.fid);
@@ -57,6 +59,7 @@ export default function Page() {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
+
 
 
   /* ----------- MINING STATES ----------- */
@@ -76,7 +79,10 @@ export default function Page() {
 
   /* ---------------- INITIAL LOAD ---------------- */
   useEffect(() => {
-    window.parent.postMessage({ type: "miniapp.ready", version: 1 }, "*");
+    window.parent.postMessage(
+      { type: "miniapp.ready", version: 1 },
+      "https://base.app"
+    );
 
     const storedStart = localStorage.getItem("start_mining_at");
     const storedPoints = localStorage.getItem("mining_points");
