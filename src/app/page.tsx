@@ -43,6 +43,8 @@ export default function Page() {
 
   /* ----------- FARCASTER / NEYNAR PREP ----------- */
   const [fid, setFid] = useState<number | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -57,6 +59,29 @@ export default function Page() {
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
+
+  /* ----------- FETCH NEYNAR PROFILE ----------- */
+  useEffect(() => {
+    if (!fid) return;
+
+    const loadProfile = async () => {
+      try {
+        setProfileLoading(true);
+
+        const res = await fetch(`/api/neynar/profile?fid=${fid}`);
+        const data = await res.json();
+
+        setProfile(data);
+        console.log("Neynar profile loaded:", data);
+      } catch (err) {
+        console.error("Failed to load Neynar profile", err);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [fid]);
 
 
 
@@ -336,25 +361,55 @@ export default function Page() {
               Play • Mine • Earn on Base
             </p>
 
+            {/* PROFILE CARD */}
             <div
               style={{
-                padding: "10px 12px",
-                borderRadius: 10,
+                padding: "12px",
+                borderRadius: 14,
                 background: "#f1f5f9",
-                fontSize: 14,
-                textAlign: "left",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
               }}
             >
-              {isConnected ? (
-                <span>
-                  Wallet: <b>{address}</b>
-                </span>
-              ) : (
-                <span>
-                  Wallet will auto-connect when opened inside Base App
-                </span>
-              )}
+              {/* LEFT: Profile */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <img
+                  src={profile?.pfp || "/avatar.png"}
+                  alt="pfp"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    background: "#e5e7eb",
+                  }}
+                />
+
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                    {profile
+                      ? profile.displayName || profile.username
+                      : "Loading..."}
+                  </div>
+
+                  <div style={{ fontSize: 12, color: "#64748b" }}>
+                    ⭐ Neynar Score:{" "}
+                    {profile ? profile.score : "--"}
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: Balance */}
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 12, color: "#64748b" }}>Balance</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+                  0
+                </div>
+              </div>
             </div>
+
           </div>
         )}
 
