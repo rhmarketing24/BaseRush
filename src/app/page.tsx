@@ -62,6 +62,8 @@ export default function Page() {
 }, []);
 
 
+
+
   /* ----------- FETCH NEYNAR PROFILE ----------- */
   useEffect(() => {
     if (!fid) return;
@@ -399,6 +401,14 @@ export default function Page() {
                   <div style={{ fontSize: 12, color: "#64748b" }}>
                     ⭐ Neynar Score:{" "}
                     {profile ? profile.score : "--"}
+
+                    {!profile && (
+  <div style={{ fontSize: 12, color: "#64748b" }}>
+    Farcaster profile not detected
+  </div>
+)}
+
+
                   </div>
                 </div>
               </div>
