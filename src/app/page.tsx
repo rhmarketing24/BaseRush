@@ -47,18 +47,20 @@ export default function Page() {
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === "miniapp.context") {
-        if (event.data.fid) {
-          setFid(event.data.fid);
-          console.log("FID found:", event.data.fid);
-        }
+  const handleMessage = (event: MessageEvent) => {
+    if (event.data?.type === "farcaster:context") {
+      const fidFromContext = event.data.context?.fid;
+      if (fidFromContext) {
+        setFid(fidFromContext);
+        console.log("FID from Base App:", fidFromContext);
       }
-    };
+    }
+  };
 
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  window.addEventListener("message", handleMessage);
+  return () => window.removeEventListener("message", handleMessage);
+}, []);
+
 
   /* ----------- FETCH NEYNAR PROFILE ----------- */
   useEffect(() => {
